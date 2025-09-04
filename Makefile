@@ -1,6 +1,6 @@
 export MYSQL_URL='mysql://root:secretPassword@tcp(localhost:3306)/elibrary'
 
-# Migration commands
+# Migration commands for local development
 migrate-create:
 	@ migrate create -ext sql -dir scripts/migrations -seq $(name)
 
@@ -12,6 +12,19 @@ migrate-down:
 
 migrate-force:
 	@ migrate -database $(MYSQL_URL) -path scripts/migrations force $(version)
+
+# Migration commands for Railway (requires Railway CLI)
+migrate-railway-up:
+	@ echo "Running migrations on Railway..."
+	@ railway run migrate -database "$(shell railway variables get DATABASE_URL)" -path scripts/migrations up
+
+migrate-railway-down:
+	@ echo "Running down migrations on Railway..."
+	@ railway run migrate -database "$(shell railway variables get DATABASE_URL)" -path scripts/migrations down
+
+migrate-railway-force:
+	@ echo "Force migration version $(version) on Railway..."
+	@ railway run migrate -database "$(shell railway variables get DATABASE_URL)" -path scripts/migrations force $(version)
 
 # Docker commands
 docker-up:
@@ -40,4 +53,4 @@ install:
 	@ go mod tidy
 	@ go mod download
 
-.PHONY: migrate-create migrate-up migrate-down migrate-force docker-up docker-down docker-logs run build test dev install
+.PHONY: migrate-create migrate-up migrate-down migrate-force migrate-railway-up migrate-railway-down migrate-railway-force docker-up docker-down docker-logs run build test dev install

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"log"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/ferdy-adr/elibrary-backend/internal/configs"
 	authHandler "github.com/ferdy-adr/elibrary-backend/internal/handlers/auth"
@@ -14,7 +17,58 @@ import (
 	bookService "github.com/ferdy-adr/elibrary-backend/internal/service/books"
 	"github.com/ferdy-adr/elibrary-backend/pkg/internalsql"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
+
+// convertMySQLURL converts Railway MySQL URL format to Go driver format
+// From: mysql://user:password@host:port/database
+// To: user:password@tcp(host:port)/database
+func convertMySQLURL(mysqlURL string) (string, error) {
+	if !strings.HasPrefix(mysqlURL, "mysql://") {
+		// Already in correct format
+		return mysqlURL, nil
+	}
+
+	u, err := url.Parse(mysqlURL)
+	if err != nil {
+		return "", err
+	}
+
+	user := u.User.Username()
+	password, _ := u.User.Password()
+	host := u.Host
+	database := strings.TrimPrefix(u.Path, "/")
+
+	// Convert to Go MySQL driver format
+	dsn := user + ":" + password + "@tcp(" + host + ")/" + database
+	return dsn, nil
+}
+
+// runMigrations runs database migrations automatically
+func runMigrations(db *sql.DB) error {
+	driver, err := mysql.WithInstance(db, &mysql.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://./scripts/migrations",
+		"mysql",
+		driver,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	log.Println("Database migrations completed successfully")
+	return nil
+}
 
 func main() {
 	// Initialize config
@@ -41,17 +95,35 @@ func main() {
 		port = ":" + railwayPort
 	}
 
+	// Handle Railway's DATABASE_URL environment variable
+	dataSourceName := cfg.Database.DataSourceName
+	if railwayDataSource := os.Getenv("DATABASE_URL"); railwayDataSource != "" {
+		convertedDSN, err := convertMySQLURL(railwayDataSource)
+		if err != nil {
+			log.Fatal("Failed to convert DATABASE_URL:", err)
+		}
+		dataSourceName = convertedDSN
+		log.Printf("Using Railway DATABASE_URL: %s", railwayDataSource)
+		log.Printf("Converted DSN: %s", dataSourceName)
+	}
+
 	// Set Gin mode for production
 	if os.Getenv("GIN_MODE") == "" && os.Getenv("PORT") != "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// Initialize database
-	db, err := internalsql.Connect(cfg.Database.DataSourceName)
+	db, err := internalsql.Connect(dataSourceName)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	log.Println("Database connected successfully")
+
+	// Run migrations automatically
+	if err := runMigrations(db); err != nil {
+		log.Printf("Warning: Migration failed: %v", err)
+		// Don't fatal here, let the app continue if migrations fail
+	}
 
 	// Initialize repositories
 	userRepository := userRepo.NewRepository(db)
