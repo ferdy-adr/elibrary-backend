@@ -151,6 +151,54 @@ make migrate-create name=new_table # Create new migration
 make migrate-force version=1       # Force migration version
 ```
 
+## Deployment to Railway
+
+### 1. Setup Database
+- Buka [Railway Dashboard](https://railway.app)
+- Buat project baru
+- Add **MySQL plugin** (klik + New → Database → MySQL)
+- **PENTING**: Copy `DATABASE_URL` dari MySQL service (bukan app service)
+  - Klik MySQL service → Connect tab → Copy "Connection URL"
+  - Gunakan "Private Network" untuk performa lebih baik
+
+### 2. Deploy Application
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Initialize project (di folder root)
+railway init
+
+# Deploy
+railway up
+```
+
+### 3. Set Environment Variables
+Di Railway dashboard, **pada service aplikasi Anda** (bukan MySQL service), tambahkan environment variables:
+```
+DATABASE_URL=mysql://username:password@hostname:port/railway
+JWT_SECRET_KEY=your-super-secret-jwt-key-for-production
+UPLOAD_PATH=./public/images
+GIN_MODE=release
+```
+
+**Format DATABASE_URL yang benar:**
+```
+mysql://root:password@gondola.proxy.rlwy.net:27533/railway
+```
+**⚠️ PENTING**: 
+- Copy DATABASE_URL dari MySQL service, bukan dari app service
+- Database name biasanya `railway` (default Railway database name)
+- Paste DATABASE_URL di environment variables **app service**
+
+### 4. Domain & Access
+- Railway akan memberikan domain otomatis
+- Aplikasi akan berjalan di port yang ditentukan Railway
+- Akses API: `https://your-app.railway.app/health`
+
 ## API Usage
 
 ### 1. Register User
@@ -219,14 +267,30 @@ Lihat [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) untuk dokumentasi lengkap A
 
 ## Environment Variables
 
-Aplikasi ini menggunakan file konfigurasi YAML, namun Anda juga bisa menggunakan environment variables:
+Aplikasi ini menggunakan file konfigurasi YAML untuk development, namun untuk production (Railway) akan menggunakan environment variables:
 
-```bash
-export SERVICE_PORT=":8080"
-export DATABASE_DATASOURCENAME="root:secretPassword@tcp(localhost:3306)/elibrary"
-export JWT_SECRETKEY="your-secret-key"
-export UPLOAD_PATH="./public/images"
+### Development (config.yaml)
+```yaml
+service:
+  port: ":8080"
+database:
+  dataSourceName: "root:secretPassword@tcp(localhost:3306)/elibrary"
+jwt:
+  secretKey: "your-secret-key"
+upload:
+  path: "./public/images"
 ```
+
+### Production (Environment Variables)
+```bash
+PORT=8080                          # Set otomatis oleh Railway
+DATABASE_URL="mysql://user:pass@host:port/db"
+JWT_SECRET_KEY="your-production-secret-key"
+UPLOAD_PATH="./public/images"
+GIN_MODE="release"
+```
+
+**Priority**: Environment Variables > config.yaml file
 
 ## Database Schema
 
@@ -296,6 +360,52 @@ make migrate-force version=1
 mkdir -p public/images
 chmod 755 public/images
 ```
+
+### Railway Deployment Issues
+
+1. **"The executable `go` could not be found" Error**
+   ```bash
+   # Solution 1: Use Dockerfile (Recommended)
+   # Ensure railway.toml has:
+   [build]
+   builder = "dockerfile"
+   
+   # Solution 2: Use nixpacks
+   # Change railway.toml to:
+   [build]
+   builder = "nixpacks"
+   ```
+
+2. **"dial tcp [::1]:3306: connect: connection refused" Error**
+   ```bash
+   # This means app is trying to connect to localhost MySQL instead of Railway MySQL
+   
+   # Solution:
+   # 1. Check if DATABASE_URL is set in your APP service (not MySQL service)
+   # 2. Get correct DATABASE_URL from MySQL service:
+   #    - Click MySQL service → Connect tab → Copy Connection URL
+   # 3. Set DATABASE_URL in your APP service environment variables
+   # 4. Redeploy: railway up
+   ```
+
+3. **Database Connection Issues**
+   - **Wrong DATABASE_URL**: Pastikan format `mysql://user:pass@host:port/railway`
+   - **Database name**: Gunakan `railway` sebagai database name (default Railway)
+   - **Service confusion**: Set DATABASE_URL di **app service**, ambil dari **MySQL service**
+   - **Check variables**: `railway variables` untuk memastikan DATABASE_URL ter-set
+
+3. **Environment Variables**
+   - Cek semua required environment variables sudah diset
+   - `JWT_SECRET_KEY` harus diset untuk production
+
+4. **Build Issues**
+   - Pastikan `go.mod` dan `go.sum` sudah ter-commit
+   - Test local build: `./test-railway-build.sh`
+   - Cek logs deployment di Railway dashboard: `railway logs`
+
+5. **Port Issues**
+   - Railway otomatis handle PORT environment variable
+   - Aplikasi akan listen pada port yang diberikan Railway
 
 ## Contributing
 
