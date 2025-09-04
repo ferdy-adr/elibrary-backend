@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "go run cmd/main.go"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[env]
+GO_VERSION = "1.23.5"

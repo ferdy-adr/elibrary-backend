@@ -48,6 +48,9 @@ app.log
 .env.test.local
 .env.production.local
 
+# Railway
+.railway/
+
 # Database
 *.db
 *.sqlite

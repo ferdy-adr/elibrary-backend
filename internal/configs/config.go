@@ -1,6 +1,10 @@
 package configs
 
-import "github.com/spf13/viper"
+import (
+	"log"
+
+	"github.com/spf13/viper"
+)
 
 var config *Config
 
@@ -29,11 +33,20 @@ func Init(opts ...Option) error {
 	viper.SetConfigType(opt.configType)
 	viper.AutomaticEnv()
 
+	// Set environment variable mappings for Railway
+	viper.SetEnvPrefix("")
+	viper.BindEnv("service.port", "PORT")
+	viper.BindEnv("database.dataSourceName", "DATABASE_URL")
+	viper.BindEnv("jwt.secretKey", "JWT_SECRET_KEY")
+	viper.BindEnv("upload.path", "UPLOAD_PATH")
+
 	config = new(Config)
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return err
+		// If config file not found, try to use environment variables only
+		log.Println("Config file not found, using environment variables only")
+		return viper.Unmarshal(&config)
 	}
 	return viper.Unmarshal(&config)
 }

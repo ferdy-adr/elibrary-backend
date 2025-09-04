@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/ferdy-adr/elibrary-backend/internal/configs"
 	authHandler "github.com/ferdy-adr/elibrary-backend/internal/handlers/auth"
@@ -28,6 +29,17 @@ func main() {
 
 	cfg := configs.Get()
 	log.Println("Config loaded successfully")
+
+	// Handle Railway's PORT environment variable
+	port := cfg.Service.Port
+	if railwayPort := os.Getenv("PORT"); railwayPort != "" {
+		port = ":" + railwayPort
+	}
+
+	// Set Gin mode for production
+	if os.Getenv("GIN_MODE") == "" && os.Getenv("PORT") != "" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	// Initialize database
 	db, err := internalsql.Connect(cfg.Database.DataSourceName)
@@ -67,8 +79,8 @@ func main() {
 	})
 
 	// Start server
-	log.Printf("Server starting on port %s", cfg.Service.Port)
-	if err := r.Run(cfg.Service.Port); err != nil {
+	log.Printf("Server starting on port %s", port)
+	if err := r.Run(port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

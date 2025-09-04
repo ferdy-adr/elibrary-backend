@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+API_DOCUMENTATION.md
+*.md
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+
+# Development files
+.vscode
+.idea
+*.log
+
+# Test files
+test_*.sh
+test_*
+
+# Database volumes
+elibrary_mysql/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Build artifacts
+bin/
+dist/
+
+# Environment
+.env*
+
+# Railway
+.railway/
+
+# Uploaded files (will be created in container)
+public/images/*
+!public/images/.gitkeep
