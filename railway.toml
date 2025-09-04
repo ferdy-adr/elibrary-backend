@@ -1,10 +1,11 @@
 [build]
-builder = "nixpacks"
+builder = "dockerfile"
 
 [deploy]
-startCommand = "go run cmd/main.go"
+startCommand = "./main"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
 [env]
+# Ensure Go version if using nixpacks fallback
 GO_VERSION = "1.23.5"
