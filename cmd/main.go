@@ -30,6 +30,11 @@ func main() {
 	cfg := configs.Get()
 	log.Println("Config loaded successfully")
 
+	// Debug info for Railway deployment
+	log.Printf("Database DSN: %s", cfg.Database.DataSourceName)
+	log.Printf("Environment PORT: %s", os.Getenv("PORT"))
+	log.Printf("Environment DATABASE_URL: %s", os.Getenv("DATABASE_URL"))
+
 	// Handle Railway's PORT environment variable
 	port := cfg.Service.Port
 	if railwayPort := os.Getenv("PORT"); railwayPort != "" {
