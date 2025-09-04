@@ -1,0 +1,11 @@
+service:
+  port: ":9999"
+
+database:
+  dataSourceName: "root:secretPassword@tcp(localhost:3306)/elibrary"
+
+jwt:
+  secretKey: "your-very-secret-key-for-elibrary-app"
+
+upload:
+  path: "./public/images"
